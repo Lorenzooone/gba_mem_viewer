@@ -1,0 +1,20 @@
+ifeq ($(strip $(DEVKITPRO)),)
+$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro)
+endif
+
+include $(DEVKITARM)/base_rules
+
+PORTLIBS	:=	$(PORTLIBS_PATH)/gba $(PORTLIBS_PATH)/armv4
+
+LIBGBA	:=	$(DEVKITPRO)/libgba
+
+#---------------------------------------------------------------------------------
+%.gba: %.elf
+	$(SILENTCMD)$(OBJCOPY) -O binary $< $@
+	@echo built ... $(notdir $@)
+	$(SILENTCMD)gbafix $@
+
+#---------------------------------------------------------------------------------
+%.elf:
+	$(SILENTMSG) linking cartridge
+	$(SILENTCMD)$(LD)  $(LDFLAGS) -specs=$(PWD)/linker/gba_vram.specs $(OFILES) $(LIBPATHS) $(LIBS) -o $@
