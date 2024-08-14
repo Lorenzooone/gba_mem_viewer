@@ -9,46 +9,6 @@
 void create_window(u8, u8, u8, u8, u8);
 void reset_window(u8, u8, u8, u8, u8);
 
-void init_message_window() {
-    create_window(MESSAGE_WINDOW_X, MESSAGE_WINDOW_Y, MESSAGE_WINDOW_X_SIZE, MESSAGE_WINDOW_Y_SIZE, MESSAGE_WINDOW_SCREEN);
-}
-
-void clear_message_window() {
-    reset_window(MESSAGE_WINDOW_X, MESSAGE_WINDOW_Y, MESSAGE_WINDOW_X_SIZE, MESSAGE_WINDOW_Y_SIZE, MESSAGE_WINDOW_SCREEN);
-}
-
-void init_loading_window() {
-    create_window(LOADING_WINDOW_X, LOADING_WINDOW_Y, LOADING_WINDOW_X_SIZE, LOADING_WINDOW_Y_SIZE, LOADING_WINDOW_SCREEN);
-}
-
-void clear_loading_window() {
-    reset_window(LOADING_WINDOW_X, LOADING_WINDOW_Y, LOADING_WINDOW_X_SIZE, LOADING_WINDOW_Y_SIZE, LOADING_WINDOW_SCREEN);
-}
-
-void init_crash_window() {
-    create_window(CRASH_WINDOW_X, CRASH_WINDOW_Y, CRASH_WINDOW_X_SIZE, CRASH_WINDOW_Y_SIZE, CRASH_WINDOW_SCREEN);
-}
-
-void clear_crash_window() {
-    reset_window(CRASH_WINDOW_X, CRASH_WINDOW_Y, CRASH_WINDOW_X_SIZE, CRASH_WINDOW_Y_SIZE, CRASH_WINDOW_SCREEN);
-}
-
-void init_waiting_window(s8 y_increase) {
-    create_window(WAITING_WINDOW_X, WAITING_WINDOW_Y + y_increase, WAITING_WINDOW_X_SIZE, WAITING_WINDOW_Y_SIZE, WAITING_WINDOW_SCREEN);
-}
-
-void clear_waiting_window(s8 y_increase) {
-    reset_window(WAITING_WINDOW_X, WAITING_WINDOW_Y + y_increase, WAITING_WINDOW_X_SIZE, WAITING_WINDOW_Y_SIZE, WAITING_WINDOW_SCREEN);
-}
-
-void init_colour_window() {
-    create_window(COLOURS_WINDOW_X, COLOURS_WINDOW_Y, COLOURS_WINDOW_X_SIZE, COLOURS_WINDOW_Y_SIZE, COLOURS_WINDOW_SCREEN);
-}
-
-void clear_colour_window() {
-    reset_window(COLOURS_WINDOW_X, COLOURS_WINDOW_Y, COLOURS_WINDOW_X_SIZE, COLOURS_WINDOW_Y_SIZE, COLOURS_WINDOW_SCREEN);
-}
-
 void init_address_window() {
     create_window(ADDRESS_WINDOW_X, ADDRESS_WINDOW_Y, ADDRESS_WINDOW_X_SIZE, ADDRESS_WINDOW_Y_SIZE, ADDRESS_WINDOW_SCREEN);
 }

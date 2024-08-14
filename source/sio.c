@@ -1,5 +1,6 @@
 #include "base_include.h"
 #include "sio.h"
+#include "delays.h"
 #include "useful_qualifiers.h"
 
 #define BLANK_LINES_WAIT 13
@@ -10,15 +11,8 @@ void sio_write(u32);
 void timed_wait_master(int);
 
 #ifdef HAS_SIO
-IWRAM_CODE void timed_wait_master(int vCountWait) {
-    u8 curr_vcount, target_vcount;
-
-    // - Wait at least 36 us between sends (this is a bit more, but it works)
-    curr_vcount = REG_VCOUNT;
-    target_vcount = curr_vcount + vCountWait;
-    if(target_vcount >= SCANLINES)
-        target_vcount -= SCANLINES;
-    while (target_vcount != REG_VCOUNT);
+IWRAM_CODE void timed_wait_master(int wait_mus) {
+    delay_cycles(CLOCK_CYCLES_PER_MUS(wait_mus));
 
     // - Set Start flag.
     REG_SIOCNT |= SIO_START;
@@ -26,22 +20,22 @@ IWRAM_CODE void timed_wait_master(int vCountWait) {
     while (REG_SIOCNT & SIO_START);
 }
 
-IWRAM_CODE int timed_sio_normal_master(int data, int is_32, int vCountWait) {
+IWRAM_CODE int timed_sio_normal_master(int data, int is_32, int wait_mus) {
     sio_write(data);
     
-    timed_wait_master(vCountWait);
+    timed_wait_master(wait_mus);
 
     // - Process received data.
     return sio_read(is_32);
 }
 
-IWRAM_CODE void timed_sio_multi_master(int data, int vCountWait, u16* out_buff) {
+IWRAM_CODE void timed_sio_multi_master(int data, int wait_mus, u16* out_buff) {
     if(REG_SIOCNT & SIO_RDY)
         return;
 
     REG_SIOMLT_SEND = (data & 0xFFFF);
     
-    timed_wait_master(vCountWait);
+    timed_wait_master(wait_mus);
 
     // - Process received data.
     for(int i = 0; i < MAX_NUM_SLAVES; i++)

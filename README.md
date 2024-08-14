@@ -1,5 +1,5 @@
 # GBA Memory Viewer
-This is a small homebrew to view the GBA's Memory. By default, it resides in OVRAM.
+This is a small homebrew to view the GBA's Memory. Various configurations for its RAM location are available.
 
 The basic build reads save data assuming a Pokémon Cartridge is inserted.
 

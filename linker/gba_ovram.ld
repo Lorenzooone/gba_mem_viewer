@@ -4,15 +4,15 @@ ENTRY( _start)
 
 MEMORY {
 	rom	: ORIGIN = 0x08000000, LENGTH = 32M
-	vram		: ORIGIN = 0x06002000, LENGTH = 10K
-	vram_iwram	: ORIGIN = 0x06004800, LENGTH = 1K
+	ovram		: ORIGIN = 0x06015400, LENGTH = 10K
+	ovram_iwram	: ORIGIN = 0x06017C00, LENGTH = 1K
 }
 
-__iwram_start	=	ORIGIN(vram_iwram);
-__iwram_top		=	ORIGIN(vram_iwram) + LENGTH(vram_iwram);;
+__iwram_start	=	ORIGIN(ovram_iwram);
+__iwram_top		=	ORIGIN(ovram_iwram) + LENGTH(ovram_iwram);;
 
-__ram_start		=	ORIGIN(vram);
-__ram_end		=	ORIGIN(vram) + LENGTH(vram);;
+__ram_start		=	ORIGIN(ovram);
+__ram_end		=	ORIGIN(ovram) + LENGTH(ovram);;
 
 __sp_irq		=	__iwram_top - 0x060;
 __sp_usr		=	__sp_irq - 0x0a0;
@@ -56,3 +56,4 @@ SECTIONS
 		__end__ = ABSOLUTE(.);
 	}
 }
+

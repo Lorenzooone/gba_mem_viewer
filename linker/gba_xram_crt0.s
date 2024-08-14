@@ -75,30 +75,30 @@ start_vector:
 
 	.thumb
 
-	mov     r0, pc
-	lsl     r0, #5				@ Are we running from ROM (0x8000000 or higher) ?
-	bcc     SkipEWRAMClear			@ No, so no need to do a copy.
+	mov r0, pc
+	lsr r0, #24
+	ldr r2, =__ram_start
+	lsr r1, r2, #24
+	cmp r0, r1				@ Was this started in XRAM?
+	beq SkipCopy			@ No, so a copy is needed.
 
 @---------------------------------------------------------------------------------
-@ We were started in ROM, silly emulators. :P
-@ So we need to copy to ExWRAM.
+@ We were started in ROM or EWRAM
+@ So we need to copy to XRAM.
 @---------------------------------------------------------------------------------
-	ldr r2, =#0x06010800
 	ldr	r3, =__end__		@ last vwram address
 	sub	r3, r2				@ r3= actual binary size
 	mov	r6, r2				@ r6= 0x06010800
-	mov r1, #8
-	lsl r1, r1, #24			@ r1= 0x08000000
+	lsl r1, r0, #24			@ r1= 0x08000000/0x02000000
 
 	bl	CopyMem
 
 	bx	r6				@ Jump to the code to execute
 
 @---------------------------------------------------------------------------------
-SkipEWRAMClear:
+@ Rest of the execution code.
 @---------------------------------------------------------------------------------
-
-/*
+SkipCopy:
 @---------------------------------------------------------------------------------
 @ Clear BSS section to 0x00
 @---------------------------------------------------------------------------------
@@ -107,6 +107,7 @@ SkipEWRAMClear:
 	sub	r1, r0
 	bl	ClearMem
 
+/*
 @---------------------------------------------------------------------------------
 @ Clear SBSS section to 0x00
 @---------------------------------------------------------------------------------

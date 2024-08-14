@@ -1,20 +1,19 @@
 #include "base_include.h"
 #include "multiboot_handler.h"
 #include "graphics_handler.h"
-#include "sprite_handler.h"
 #include "input_handler.h"
 #include "menu_text_handler.h"
-#include "rng.h"
 #include "print_system.h"
 #include "window_handler.h"
 #include "sio.h"
+#include "delays.h"
 #include <stddef.h>
 #include "optimized_swi.h"
 #include "timing_basic.h"
 #include "config_settings.h"
 #include "save.h"
 
-#include "ewram_speed_check_bin.h"
+//#include "ewram_speed_check_bin.h"
 
 #define REG_MEMORY_CONTROLLER_ADDR 0x4000800
 #define HW_SET_REG_MEMORY_CONTROLLER_VALUE 0x0D000020
@@ -24,38 +23,26 @@
 #define TEST_LAG_EWRAM 0
 #define MIN_WAITCYCLE 1
 
-#define WAITING_TIME_MOVE_MESSAGES (2*FPS)
-#define WAITING_TIME_BEFORE_RESPONSE (1*FPS)
-#define WAITING_TIME_REJECTED (2*FPS)
-#define MAX_RANDOM_WAIT_TIME (1*FPS)
+#define BASE_SCREEN 2
 
-#define BASE_SCREEN 0
-#define LEARNABLE_MOVES_MENU_SCREEN 2
-#define TRADE_CANCEL_SCREEN 1
-#define INFO_SCREEN 3
-#define NATURE_SCREEN 2
-#define IV_FIX_SCREEN 2
-#define EVOLUTION_MENU_SCREEN 2
+//#define DO_TIMER_TESTS
+#define NUM_TIMER_TESTS ((SCREEN_HEIGHT >> 3) - 1)
+
+extern uint32_t _start;
+extern uint32_t _prog_end;
 
 void vblank_update_function(void);
 void find_optimal_ewram_settings(void);
 void disable_all_irqs(void);
-u8 init_cursor_y_pos_main_menu(void);
-void cursor_update_main_menu(u8);
-void cursor_update_base_settings_menu(u8);
-void cursor_update_colours_settings_menu(u8, u8);
-void loading_print_screen(void);
-void waiting_init(s8);
+void delay_no_read_test(u16*);
+void delay_read_test(u16*);
+void timer_test(void);
 void address_setting_init(mu8*, uintptr_t);
-void main_menu_init(mu8*, uintptr_t);
-void base_settings_menu_init(mu8*);
-void colours_settings_menu_init(mu8*, mu8*);
-void prepare_crash_screen(enum CRASH_REASONS);
-void crash_on_cartridge_removed(void);
-void wait_frames(int);
+void main_menu_init(uintptr_t);
 int main(void);
 
-enum STATE {MAIN_MENU, MULTIBOOT, WAITING_DATA, BASE_SETTINGS_MENU, COLOURS_SETTINGS_MENU, MULTIBOOT_SETTINGS_MENU, ADDRESS_SETTING_MENU};
+enum STATE {MAIN_MENU, MULTIBOOT, MULTIBOOT_SETTINGS_MENU, ADDRESS_SETTING_MENU};
+// curr_state should be "enum STATE", but that creates issues if building for VRAM...
 mu8 curr_state;
 u32 counter = 0;
 u32 input_counter = 0;
@@ -65,9 +52,6 @@ IWRAM_CODE void vblank_update_function() {
 
     flush_screens();
 
-    move_sprites(counter);
-    move_cursor_x(counter);
-    advance_rng();
     counter++;
 
     #ifdef __NDS__
@@ -118,51 +102,6 @@ void disable_all_irqs() {
     REG_IE = 0;
 }
 
-u8 init_cursor_y_pos_main_menu() {
-    return 0;
-}
-
-void cursor_update_main_menu(u8 cursor_y_pos) {
-    //update_cursor_y(BASE_Y_CURSOR_MAIN_MENU + (BASE_Y_CURSOR_INCREMENT_MAIN_MENU * cursor_y_pos));
-}
-
-void cursor_update_base_settings_menu(u8 cursor_y_pos) {
-    update_cursor_y(BASE_Y_CURSOR_BASE_SETTINGS_MENU + (BASE_Y_CURSOR_INCREMENT_BASE_SETTINGS_MENU * cursor_y_pos));
-}
-
-void cursor_update_colours_settings_menu(u8 cursor_y_pos, u8 cursor_x_pos) {
-    if(!cursor_x_pos)
-        update_cursor_base_x(BASE_X_CURSOR_COLOURS_SETTINGS_MENU);
-    else
-        update_cursor_base_x(BASE_X_CURSOR_COLOURS_SETTINGS_MENU_IN + ((cursor_x_pos-1) * BASE_X_CURSOR_INCREMENT_COLOURS_SETTINGS_MENU_IN));
-    update_cursor_y(BASE_Y_CURSOR_COLOURS_SETTINGS_MENU + (BASE_Y_CURSOR_INCREMENT_COLOURS_SETTINGS_MENU * cursor_y_pos));
-}
-
-void wait_frames(int num_frames) {
-    int wait_counter = 0;
-    while(wait_counter < num_frames) {
-        VBlankIntrWait();
-        wait_counter++;
-    }
-}
-
-void loading_print_screen() {
-    u8 prev_screen = get_screen_num();
-    set_screen(LOADING_WINDOW_SCREEN);
-    print_loading();
-    enable_screen(LOADING_WINDOW_SCREEN);
-    set_screen(prev_screen);
-    prepare_flush();
-}
-
-void waiting_init(s8 y_increase) {
-    curr_state = WAITING_DATA;
-    set_screen(WAITING_WINDOW_SCREEN);
-    print_waiting(y_increase);
-    enable_screen(WAITING_WINDOW_SCREEN);
-    prepare_flush();
-}
-
 void address_setting_init(mu8* cursor_x_pos, uintptr_t address) {
     curr_state = ADDRESS_SETTING_MENU;
     set_screen(ADDRESS_WINDOW_SCREEN);
@@ -172,74 +111,67 @@ void address_setting_init(mu8* cursor_x_pos, uintptr_t address) {
     prepare_flush();
 }
 
-void main_menu_init(mu8* cursor_y_pos, uintptr_t address) {
+void main_menu_init(uintptr_t address) {
     curr_state = MAIN_MENU;
     set_screen(BASE_SCREEN);
     set_bg_pos(BASE_SCREEN, 0, 0);
     print_main_menu(1, address);
     disable_all_screens_but_current();
-    reset_sprites_to_cursor(1);
-    disable_all_cursors();
-    *cursor_y_pos = init_cursor_y_pos_main_menu();
-    update_cursor_base_x(BASE_X_CURSOR_MAIN_MENU);
-    cursor_update_main_menu(*cursor_y_pos);
     enable_screen(BASE_SCREEN);
     prepare_flush();
 }
 
-void base_settings_menu_init(mu8* cursor_y_pos) {
-    curr_state = BASE_SETTINGS_MENU;
-    set_screen(BASE_SCREEN);
-    disable_all_screens_but_current();
-    disable_all_cursors();
-    print_base_settings_menu(1);
-    enable_screen(BASE_SCREEN);
-    *cursor_y_pos = 0;
-    update_cursor_base_x(BASE_X_CURSOR_BASE_SETTINGS_MENU);
-    cursor_update_base_settings_menu(*cursor_y_pos);
-    prepare_flush();
+void delay_no_read_test(u16* results) {
+    for(int i = 0; i < NUM_TIMER_TESTS; i++) {
+        REG_TM3CNT_L = 0;
+        REG_TM3CNT_H = 0x83;
+        delay_cycles(CLOCK_CYCLES_PER_MS(500));
+        REG_TM3CNT_H = 0x03;
+        results[i] = REG_TM3CNT_L;
+    }
 }
 
-void colours_settings_menu_init(mu8* cursor_y_pos, mu8* cursor_x_pos) {
-    curr_state = COLOURS_SETTINGS_MENU;
-    set_screen(BASE_SCREEN);
-    disable_all_screens_but_current();
-    disable_all_cursors();
-    print_colour_settings_menu(1);
-    enable_screen(BASE_SCREEN);
-    *cursor_y_pos = 0;
-    *cursor_x_pos = 0;
-    cursor_update_colours_settings_menu(*cursor_y_pos, *cursor_x_pos);
-    prepare_flush();
+void delay_read_test(u16* results) {
+    for(int i = 0; i < NUM_TIMER_TESTS; i++) {
+        REG_TM3CNT_L = 0;
+        REG_TM3CNT_H = 0x83;
+        delay_cycles_until(CLOCK_CYCLES_PER_MS(500), (vu8*)ROM, 0xFD, 4);
+        REG_TM3CNT_H = 0x03;
+        results[i] = REG_TM3CNT_L;
+    }
 }
 
-void prepare_crash_screen(enum CRASH_REASONS reason) {
-    set_screen(BASE_SCREEN);
+void timer_test() {
     default_reset_screen();
-    enable_screen(BASE_SCREEN);
-    reset_sprites_to_cursor(1);
-    disable_all_screens_but_current();
-    disable_all_cursors();
-    set_screen(CRASH_WINDOW_SCREEN);
-    print_crash(reason);
-    enable_screen(CRASH_WINDOW_SCREEN);
+    u32 keys = 0;
+    u16 results[2][NUM_TIMER_TESTS];
+    PRINT_FUNCTION("PRESS ANY KEY TO TEST");
     prepare_flush();
-}
+    while(!keys) {
+        VBlankIntrWait();
+        scanKeys();
+        keys = keysHeld();
+    }
+    default_reset_screen();
+    PRINT_FUNCTION("TEST UNDER TEST...");
+    prepare_flush();
 
-void crash_on_cartridge_removed() {
-    prepare_crash_screen(CARTRIDGE_REMOVED);
-    base_stop_transfer(0);
-    base_stop_transfer(1);
-    int curr_vcount = REG_VCOUNT + 1 + 1;
-    if(curr_vcount >= SCANLINES)
-        curr_vcount -= SCANLINES;
-    while(REG_VCOUNT != curr_vcount);
-    while(REG_VCOUNT != VBLANK_SCANLINES);
-    disable_sprites_rendering();
-    flush_screens();
-    disable_all_irqs();
-    while(1)
-        Halt();
+    delay_read_test(&results[1][0]);
+    delay_no_read_test(&results[0][0]);
+
+    default_reset_screen();
+    PRINT_FUNCTION("RESULTS:\n");
+    for(int i = 0; i < NUM_TIMER_TESTS; i++) {
+        PRINT_FUNCTION("\x0D - \x0D\n", results[0][i], 4, results[1][i], 4);
+    }
+    prepare_flush();
+    keys = 0;
+    while(!keys) {
+        VBlankIntrWait();
+        scanKeys();
+        keys = keysHeld();
+    }
+    
 }
 
 int main(void)
@@ -256,13 +188,9 @@ int main(void)
     REG_WAITCNT = BASE_WAITCNT_VAL;
     init_bank();
     init_text_system();
-    init_rng(0,0);
     u32 keys;
-    
-    init_sprites();
-    init_oam_palette();
-    init_sprite_counter();
-    enable_sprites_rendering();
+    struct multiboot_fixed_data mb_data;
+
     init_numbers();
 
     #ifdef __GBA__
@@ -271,26 +199,31 @@ int main(void)
     irqSet(IRQ_VBLANK, vblank_update_function);
     irqEnable(IRQ_VBLANK);
 
-    init_cursor();
-    
-    int result = 0;
+    #ifdef EXEC_BASE
+    u16* mb_start = (u16*)EWRAM;
+    u16* mb_end = (u16*)(EWRAM + MULTIBOOT_MAX_SIZE);
+    #else
+    u16* mb_start = (u16*)&_start;
+    u16* mb_end = (u16*)&_prog_end;
+    #endif
+
     mu8 is_normal = 0;
     mu8 returned_val;
     mu8 update = 0;
-    mu8 own_menu = 0;
-    mu8 cursor_y_pos = 0;
     mu8 cursor_x_pos = 0;
-    mu8 submenu_cursor_y_pos = 0;
-    mu8 submenu_cursor_x_pos = 0;
-    mu8 prev_val = 0;
-    mu8 success = 0;
     uintptr_t address = ROM;
     uintptr_t tmp_address = address;
 
-    main_menu_init(&cursor_y_pos, address);
+    main_menu_init(address);
     //PRINT_FUNCTION("\n\n0x\x0D: 0x\x0D\n", REG_MEMORY_CONTROLLER_ADDR, 8, REG_MEMORY_CONTROLLER, 8);
     scanKeys();
     keys = keysDown();
+    #ifdef DO_TIMER_TESTS
+    while(1) {
+        timer_test();
+    }
+    return 0;
+    #endif
     
     while(1) {
         
@@ -298,34 +231,30 @@ int main(void)
             prepare_flush();
             VBlankIntrWait();
             scanKeys();
-		    switch(curr_state) {
-		        case MAIN_MENU:
-                	print_main_menu(update, address);
-			        break;
-		        default:
-			        break;
-            }
             keys = keysDown();
+            switch(curr_state) {
+                case MAIN_MENU:
+                    print_main_menu(update, address);
+                    break;
+                default:
+                    break;
+            }
         } while ((!(keys & KEY_LEFT)) && (!(keys & KEY_RIGHT)) && (!(keys & KEY_A)) && (!(keys & KEY_B)) && (!(keys & KEY_UP)) && (!(keys & KEY_DOWN)) && (!(keys & KEY_START)) && (!(keys & KEY_SELECT)));
         
         input_counter++;
         switch(curr_state) {
             case MAIN_MENU:
-                returned_val = handle_input_main_menu(&cursor_y_pos, keys, &update, &address);
+                returned_val = handle_input_main_menu(keys, &update, &address);
                 print_main_menu(update, address);
-                cursor_update_main_menu(cursor_y_pos);
                 if(returned_val == START_MULTIBOOT) {
                     curr_state = MULTIBOOT_SETTINGS_MENU;
                     is_normal = 1;
-                    disable_cursor();
                     print_multiboot_settings(is_normal, 1);
                 }
                 if(returned_val == SET_ADDRESS) {
-                	address_setting_init(&cursor_x_pos, address);
-                	tmp_address = address;
+                    address_setting_init(&cursor_x_pos, address);
+                    tmp_address = address;
                 }
-                if(returned_val == START_SETTINGS_MENU)
-                    base_settings_menu_init(&cursor_y_pos);
                 break;
             case MULTIBOOT_SETTINGS_MENU:
                 returned_val = handle_input_multiboot_settings(keys, &is_normal, &update);
@@ -335,59 +264,28 @@ int main(void)
                     sio_stop_irq_slave();
                     irqDisable(IRQ_SERIAL);
                     #endif
-                    print_multiboot(multiboot_normal((u16*)EWRAM, (u16*)(EWRAM + MULTIBOOT_MAX_SIZE), is_normal));
+                    print_multiboot(multiboot_normal(mb_start, mb_end, &mb_data, is_normal));
                 }
                 else if(returned_val == CANCEL_MULTIBOOT)
-                    main_menu_init(&cursor_y_pos, address);
+                    main_menu_init(address);
                 else
                     print_multiboot_settings(is_normal, update);
                 break;
             case MULTIBOOT:
                 if(handle_input_multiboot_menu(keys)) {
-                	return 0;
-                	main_menu_init(&cursor_y_pos, address);
-                }
-                break;
-            case WAITING_DATA:
-                break;
-            case BASE_SETTINGS_MENU:
-                returned_val = handle_input_base_settings_menu(keys, &cursor_y_pos, &update);
-                if(returned_val) {
-                    if(returned_val == ENTER_COLOUR_MENU)
-                        colours_settings_menu_init(&cursor_y_pos, &cursor_x_pos);
-                    else if(returned_val == EXIT_BASE_SETTINGS) {
-                        main_menu_init(&cursor_y_pos, address);
-                    }
-                }
-                else {
-                    print_base_settings_menu(update);
-                    cursor_update_base_settings_menu(cursor_y_pos);
-                }
-                break;
-            case COLOURS_SETTINGS_MENU:
-                returned_val = handle_input_colours_menu(keys, &cursor_y_pos, &cursor_x_pos, &update);
-                if(returned_val)
-                    base_settings_menu_init(&cursor_y_pos);
-                else {
-                    if(update) {
-                        VBlankIntrWait();
-                        set_text_palettes();
-                        set_cursor_palette();
-                    }
-                    print_colour_settings_menu(update);
-                    cursor_update_colours_settings_menu(cursor_y_pos, cursor_x_pos);
+                    main_menu_init(address);
                 }
                 break;
             case ADDRESS_SETTING_MENU:
                 returned_val = handle_input_address_settings(&cursor_x_pos, keys, &update, &tmp_address);
                 print_address_setting(update, cursor_x_pos, tmp_address);
                 if(returned_val == CONFIRM_ADDRESS_CHANGE)
-                	address = tmp_address;
-            	if(returned_val)
-	                main_menu_init(&cursor_y_pos, address);
+                    address = tmp_address;
+                if(returned_val)
+                    main_menu_init(address);
                 break;
             default:
-                main_menu_init(&cursor_y_pos, address);
+                main_menu_init(address);
                 break;
         }
         update = 0;

@@ -1,5 +1,7 @@
 build/
+build*/
 out/
+*.o
 *.elf
 *.nds
 *.NDS
@@ -7,6 +9,7 @@ out/
 *.GBA
 *.sav
 *.SAV
+*.zip
 *.py
 settings.sh
 __pycache__/

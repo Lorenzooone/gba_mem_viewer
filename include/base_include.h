@@ -33,8 +33,14 @@ ALWAYS_INLINE MAX_OPTIMIZE int __get_next_vcount_interrupt(void) {
 #define SAME_ON_BOTH_SCREENS 0
 #define CONSOLE_LETTER 'G'
 
+#if (defined(EXEC_VRAM) || defined(EXEC_OVRAM))
+#define EXEC_U16_MU8
 typedef u16 mu8;
 typedef vu16 vmu8;
+#else
+typedef u8 mu8;
+typedef vu8 vmu8;
+#endif
 
 #endif
 

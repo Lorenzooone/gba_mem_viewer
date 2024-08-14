@@ -4,7 +4,7 @@
 
 #include "default_colours_bin.h"
 
-static u16 default_colours[NUM_COLOURS][NUM_SUB_COLOURS];
+static mu8 default_colours[NUM_COLOURS][NUM_SUB_COLOURS];
 
 const struct version_t version = { .main_version = 1, .sub_version = 0, .revision_version = 0, .revision_letter = CONSOLE_LETTER};
 

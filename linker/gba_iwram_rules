@@ -8,7 +8,7 @@ PORTLIBS	:=	$(PORTLIBS_PATH)/gba $(PORTLIBS_PATH)/armv4
 
 LIBGBA	:=	$(DEVKITPRO)/libgba
 
-EXEC_TYPE := "VRAM"
+EXEC_TYPE := "IWRAM"
 
 #---------------------------------------------------------------------------------
 %.gba: %.elf
@@ -19,4 +19,4 @@ EXEC_TYPE := "VRAM"
 #---------------------------------------------------------------------------------
 %.elf:
 	$(SILENTMSG) linking cartridge
-	$(SILENTCMD)$(LD) $(LDFLAGS) -specs=$(PWD)/linker/gba_vram.specs $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+	$(SILENTCMD)$(LD) $(LDFLAGS) -specs=$(PWD)/linker/gba_iwram.specs $(OFILES) $(LIBPATHS) $(LIBS) -o $@

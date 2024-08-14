@@ -13,7 +13,7 @@ ARCHARM7	:= -mcpu=arm7tdmi
 # Targets
 # -------
 
-OBJS		:= gba_vram_crt0.o
+OBJS		:= gba_xram_crt0.o
 
 .PHONY: all clean
 
@@ -26,6 +26,6 @@ clean:
 # Rules
 # -----
 
-gba_vram_crt0.o: gba_vram_crt0.s
+%_crt0.o: %_crt0.s
 	@echo "  Compile $@"
 	$(CC) $(ASFLAGS) $(ARCHARM7) -c -o $@ $<

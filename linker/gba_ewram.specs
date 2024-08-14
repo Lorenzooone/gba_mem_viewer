@@ -2,7 +2,7 @@
 %rename endfile		old_endfile
 
 *link:
--T %:getenv(PWD /linker/gba_vram.ld)%s %(old_link) --gc-sections --no-warn-rwx-segments
+-T %:getenv(PWD /linker/gba_ewram.ld)%s %(old_link) --gc-sections --no-warn-rwx-segments
 
 *startfile:
 %:getenv(PWD /linker/gba_xram_crt0.o)

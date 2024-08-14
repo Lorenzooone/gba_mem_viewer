@@ -3,7 +3,7 @@
 #include "optimized_swi.h"
 #include "print_system.h"
 #include "graphics_handler.h"
-#include "sprite_handler.h"
+//#include "sprite_handler.h"
 #include "useful_qualifiers.h"
 #include "config_settings.h"
 #include "decompress.h"
@@ -22,6 +22,7 @@
 #define FONT_SIZE (FONT_TILES*TILE_SIZE)
 #define FONT_1BPP_SIZE (FONT_SIZE>>2)
 #define FONT_POS (((uintptr_t)VRAM_0) + 0)
+#define BUFFER_FONT_POS (FONT_POS + FONT_SIZE - FONT_1BPP_SIZE)
 #define JP_FONT_POS (FONT_POS + FONT_SIZE)
 #define NUMBERS_POS (VRAM_END - (10000*2))
 #define ARRANGEMENT_POS (JP_FONT_POS+FONT_SIZE)
@@ -36,6 +37,10 @@
 #define SCREEN_SIZE 0x800
 
 //#define OVERWRITE_SPACING
+#define NUM_BUFFERS_PER_SCREEN 2
+
+#define SKIP_DEC_NUMBERS
+#define DEFAULT_SCREEN 2
 
 #define CPUFASTSET_FILL (0x1000000)
 
@@ -150,11 +155,12 @@ ALWAYS_INLINE void base_flush() {
 IWRAM_CODE void flush_screens() {
     if(screens_flush) {
         base_flush();
-        update_normal_oam();
+        //update_normal_oam();
     }
 }
 
 void init_numbers() {
+    #ifndef SKIP_DEC_NUMBERS
     u16* numbers_storage = (u16*)NUMBERS_POS;
     
     for(int i = 0; i < 10; i++)
@@ -162,10 +168,13 @@ void init_numbers() {
             for(int k = 0; k < 10; k++)
                 for(int l = 0; l < 10; l++)
                     numbers_storage[l + (k*10) + (j*100) + (i*1000)] = l | (k<<4) | (j<<8) | (i<<12);
+    #endif
 }
 
 void set_text_palettes() {
     BG_PALETTE[0]=get_full_colour(BACKGROUND_COLOUR_POS);
+    // This one is for debugging purposes only
+    BG_PALETTE[1]=get_full_colour(FONT_COLOUR_POS);
     BG_PALETTE[(PALETTE*PALETTE_SIZE)]=get_full_colour(BACKGROUND_COLOUR_POS);
     BG_PALETTE[(PALETTE*PALETTE_SIZE)+1]=get_full_colour(FONT_COLOUR_POS);
     BG_PALETTE[(PALETTE*PALETTE_SIZE)+2]=get_full_colour(BACKGROUND_COLOUR_POS);
@@ -173,6 +182,7 @@ void set_text_palettes() {
     BG_PALETTE[(PALETTE*PALETTE_SIZE)+4]=get_full_colour(WINDOW_COLOUR_2_POS);
     #if defined (__NDS__) && (SAME_ON_BOTH_SCREENS)
     BG_PALETTE_SUB[0]=get_full_colour(BACKGROUND_COLOUR_POS);
+    BG_PALETTE_SUB[1]=get_full_colour(FONT_COLOUR_POS);
     BG_PALETTE_SUB[(PALETTE*PALETTE_SIZE)]=get_full_colour(BACKGROUND_COLOUR_POS);
     BG_PALETTE_SUB[(PALETTE*PALETTE_SIZE)+1]=get_full_colour(FONT_COLOUR_POS);
     BG_PALETTE_SUB[(PALETTE*PALETTE_SIZE)+2]=get_full_colour(BACKGROUND_COLOUR_POS);
@@ -195,7 +205,7 @@ void init_text_system() {
         set_bg_pos(i, 0, 0);
     }
     set_text_palettes();
-    set_screen(0);
+    set_screen(DEFAULT_SCREEN);
     
     // This is for the first frame
     for(size_t i = 0; i < (TILE_SIZE>>2); i++)
@@ -206,10 +216,10 @@ void init_text_system() {
     #endif
     
     default_reset_screen();
-    enable_screen(0);
+    enable_screen(DEFAULT_SCREEN);
     
     // Load english font
-    u32 buffer[FONT_1BPP_SIZE>>2];
+    u32* buffer = (u32*)BUFFER_FONT_POS;
     u8 colors[] = {2, 1};
     swi_LZ77UnCompWrite8bit(amiga_font_c_bin, buffer);
     convert_1bpp((u8*)buffer, (u32*)FONT_POS, FONT_1BPP_SIZE, colors, 1);
@@ -329,14 +339,14 @@ u8 get_screen_num(){
 screen_t* get_screen(u8 bg_num){
     if(bg_num >= TOTAL_BG)
         bg_num = TOTAL_BG-1;
-    return (screen_t*)(ARRANGEMENT_POS+(SCREEN_SIZE*(bg_num+(TOTAL_BG*buffer_screen[bg_num]))));
+    return (screen_t*)(ARRANGEMENT_POS+(SCREEN_SIZE*((bg_num * NUM_BUFFERS_PER_SCREEN)+buffer_screen[bg_num])));
 }
 
 #ifdef __NDS__
 screen_t* get_screen_sub(u8 bg_num){
     if(bg_num >= TOTAL_BG)
         bg_num = TOTAL_BG-1;
-    return (screen_t*)(ARRANGEMENT_POS_SUB+(SCREEN_SIZE*(bg_num+(TOTAL_BG*buffer_screen[bg_num]))));
+    return (screen_t*)(ARRANGEMENT_POS_SUB+(SCREEN_SIZE*((bg_num * NUM_BUFFERS_PER_SCREEN)+buffer_screen[bg_num])));
 }
 #endif
 
@@ -429,12 +439,17 @@ int sub_printf(u8* string) {
     return 0;
 }
 
+#ifndef SKIP_DEC_NUMBERS
 int prepare_base_10(int number, mu8* digits) {
+#else
+int prepare_base_10(int UNUSED(number), mu8* UNUSED(digits)) {
+#endif
+    u8 pos = NUM_DIGITS-1;
+    #ifndef SKIP_DEC_NUMBERS
     u16* numbers_storage = (u16*)NUMBERS_POS;
 
     for(int i = 0; i < NUM_DIGITS; i++)
         digits[i] = 0;
-    u8 pos = NUM_DIGITS-1;
     
     u8 minus = 0;
     u8 special = 0;
@@ -476,6 +491,7 @@ int prepare_base_10(int number, mu8* digits) {
         if(special)
             digits[NUM_DIGITS-1] += 1;
     }
+    #endif
     
     return pos;
 }
@@ -563,18 +579,22 @@ int fast_printf(const char * format, ... ) {
             case '\x02':
                 write_char((u8)va_arg(va, int));
                 break;
+            #ifndef SKIP_DEC_NUMBERS
             case '\x03':
                 write_base_10(va_arg(va, int), 0, 0);
                 break;
+            #endif
             case '\x04':
                 write_base_16(va_arg(va, u32), 0, 0);
                 break;
+            #ifndef SKIP_DEC_NUMBERS
             case '\x09':
                 write_base_10(va_arg(va, int), va_arg(va, int), ' ');
                 break;
             case '\x0B':
                 write_base_10(va_arg(va, int), va_arg(va, int), '0');
                 break;
+            #endif
             case '\x0C':
                 write_base_16(va_arg(va, u32), va_arg(va, int), ' ');
                 break;
@@ -585,10 +605,12 @@ int fast_printf(const char * format, ... ) {
                 sub_printf(va_arg(va, u8*));
                 add_requested_spacing(curr_x_pos, curr_y_pos, va_arg(va, int));
                 break;
+            #ifndef SKIP_DEC_NUMBERS
             case '\x13':
                 write_base_10(va_arg(va, int), 0, 0);
                 add_requested_spacing(curr_x_pos, curr_y_pos, va_arg(va, int));
                 break;
+            #endif
             case '\x14':
                 write_base_16(va_arg(va, u32), 0, 0);
                 add_requested_spacing(curr_x_pos, curr_y_pos, va_arg(va, int));
