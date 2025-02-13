@@ -47,6 +47,8 @@ void print_main_menu(u8 update, uintptr_t address) {
             for(int j = 0; j < (NUM_BYTES_PER_LINE / 4); j++) {
                 uint32_t curr_read_data = data[j];
                 read_data[i][j] = curr_read_data;
+                if(((uintptr_t)&data[j]) == 0x0E020000)
+                    read_data[i][j] = get_device_info();
             }
     }
 

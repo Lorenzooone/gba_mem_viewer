@@ -26,12 +26,13 @@ NAME_MAKEFILE := Makefile.gba_real
 # GRAPHICS is a list of directories containing files to be processed by grit
 # INCLUDES is a list of directories containing header files
 #---------------------------------------------------------------------------------
-TARGET		:=	$(shell basename $(CURDIR))$(TARGET_ADDED_PARTICLE)
-BUILD		:=	build$(TARGET_ADDED_PARTICLE)
-SOURCES		:=	source
-DATA		:=  data
-GRAPHICS	:=	graphics
-INCLUDES	:=  include
+TARGET			:= $(shell basename $(CURDIR))$(TARGET_ADDED_PARTICLE)
+BUILD			:= build$(TARGET_ADDED_PARTICLE)
+SOURCES			:= source
+DATA			:= data
+GRAPHICS		:= graphics
+INCLUDES		:= include
+LINKER_FOLDER	:= linker
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -124,6 +125,7 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
+	cp -r $(LINKER_FOLDER) $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/$(NAME_MAKEFILE)
 
 all	: $(BUILD)

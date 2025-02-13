@@ -5,6 +5,7 @@
 #define SECTOR_SIZE_BITS 12
 #define SECTOR_SIZE (1<<SECTOR_SIZE_BITS)
 
+u16 get_device_info(void);
 u32 read_int_save(uintptr_t);
 u16 read_short_save(uintptr_t);
 u8 read_byte_save(uintptr_t);

@@ -11,6 +11,7 @@
 #include "optimized_swi.h"
 #include "timing_basic.h"
 #include "config_settings.h"
+#include "vblank_handler.h"
 #include "save.h"
 
 //#include "ewram_speed_check_bin.h"
@@ -148,7 +149,7 @@ void timer_test() {
     PRINT_FUNCTION("PRESS ANY KEY TO TEST");
     prepare_flush();
     while(!keys) {
-        VBlankIntrWait();
+        vblank_wait_function();
         scanKeys();
         keys = keysHeld();
     }
@@ -167,7 +168,7 @@ void timer_test() {
     prepare_flush();
     keys = 0;
     while(!keys) {
-        VBlankIntrWait();
+        vblank_wait_function();
         scanKeys();
         keys = keysHeld();
     }
@@ -177,8 +178,10 @@ void timer_test() {
 int main(void)
 {
     #ifdef __GBA__
+    #ifndef ABSOLUTE_MINIMAL_START
     RegisterRamReset(RESET_SIO|RESET_SOUND|RESET_OTHER);
     disable_all_irqs();
+    #endif
     #endif
     curr_state = MAIN_MENU;
     counter = 0;
@@ -194,10 +197,14 @@ int main(void)
     init_numbers();
 
     #ifdef __GBA__
+    #ifndef ABSOLUTE_MINIMAL_START
     irqInit();
     #endif
-    irqSet(IRQ_VBLANK, vblank_update_function);
+    #endif
+    register_vblank_function(vblank_update_function);
+    #ifndef ABSOLUTE_MINIMAL_START
     irqEnable(IRQ_VBLANK);
+    #endif
 
     #ifdef EXEC_BASE
     u16* mb_start = (u16*)EWRAM;
@@ -229,7 +236,7 @@ int main(void)
         
         do {
             prepare_flush();
-            VBlankIntrWait();
+            vblank_wait_function();
             scanKeys();
             keys = keysDown();
             switch(curr_state) {
@@ -262,7 +269,9 @@ int main(void)
                     curr_state = MULTIBOOT;
                     #ifdef HAS_SIO
                     sio_stop_irq_slave();
+                    #ifndef ABSOLUTE_MINIMAL_START
                     irqDisable(IRQ_SERIAL);
+                    #endif
                     #endif
                     print_multiboot(multiboot_normal(mb_start, mb_end, &mb_data, is_normal));
                 }

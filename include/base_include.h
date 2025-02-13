@@ -103,5 +103,6 @@ typedef struct {
 #endif
 
 #define VBLANK_SCANLINES SCREEN_HEIGHT
+//#define ABSOLUTE_MINIMAL_START
 
 #endif

@@ -6,6 +6,7 @@
 #include "timing_basic.h"
 #include "delays.h"
 #include "useful_qualifiers.h"
+#include "vblank_handler.h"
 
 #define MULTIBOOT_INIT_VALID_VALUE 0x91
 
@@ -189,7 +190,7 @@ enum MULTIBOOT_RESULTS multiboot_normal (u16* UNUSED(data), u16* UNUSED(end), st
         if(mb_dyn_data.client_mask)
             break;
         else
-            VBlankIntrWait();
+            vblank_wait_function();
     }
 
     if(!mb_dyn_data.client_mask) {
@@ -249,7 +250,7 @@ enum MULTIBOOT_RESULTS multiboot_normal (u16* UNUSED(data), u16* UNUSED(end), st
     
     print_multiboot_mid_process(1);
     prepare_flush();
-    VBlankIntrWait();
+    vblank_wait_function();
 
     #ifndef EXEC_U16_MU8
     enum MULTIBOOT_MODES mb_mode = MODE32_NORMAL;
@@ -287,7 +288,7 @@ enum MULTIBOOT_RESULTS multiboot_normal (u16* UNUSED(data), u16* UNUSED(end), st
         done = 1;
         if(!received_data_same_as_value(mb_dyn_data.client_mask, 0x0075, 0xFFFF, response))
             done = 0;
-        VBlankIntrWait();
+        vblank_wait_function();
         attempt_counter += 1;
 
         if(attempt_counter == MAX_FINAL_HANDSHAKE_ATTEMPTS)

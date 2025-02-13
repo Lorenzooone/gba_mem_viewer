@@ -46,15 +46,23 @@ IWRAM_CODE void init_bank() {
     REG_WAITCNT |= SRAM_READING_VALID_WAITCYCLES;
     current_bank = NUM_BANKS;
     is_macronix = 0;
+    u8 man_id = get_device_info() & 0xFF;
+    if((man_id == MACRONIX_MAN_ID) || (man_id == SANYO_MAN_ID) || (man_id == DEFAULT_MAN_ID))
+        is_macronix = 1;
+}
+
+IWRAM_CODE u16 get_device_info() {
+    u16 out = 0;
     #if IS_FLASH
     FLASH_ENTER_MAN_CMD
     delay_cycles(ID_TIMEOUT_CYCLES);
     u8 man_id = *((vu8*)SAVE_POS);
-    if((man_id == MACRONIX_MAN_ID) || (man_id == SANYO_MAN_ID) || (man_id == DEFAULT_MAN_ID))
-        is_macronix = 1;
+    u8 dev_id = *((vu8*)(SAVE_POS + 1));
     FLASH_EXIT_MAN_CMD
     delay_cycles(ID_TIMEOUT_CYCLES);
+    out = (dev_id << 8) | man_id;
     #endif
+    return out;
 }
 
 IWRAM_CODE uintptr_t bank_check(uintptr_t address) {

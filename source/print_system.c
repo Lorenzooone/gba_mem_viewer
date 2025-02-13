@@ -7,6 +7,7 @@
 #include "useful_qualifiers.h"
 #include "config_settings.h"
 #include "decompress.h"
+#include "vblank_handler.h"
 #include <stddef.h>
 
 #include "amiga_font_c_bin.h"
@@ -275,7 +276,7 @@ IWRAM_CODE void prepare_flush() {
 void wait_for_vblank_if_needed() {
     // Avoid writing where you shouldn't
     if(screens_flush)
-        VBlankIntrWait();
+        vblank_wait_function();
 }
 
 IWRAM_CODE void swap_screen_enabled_state(u8 bg_num){
